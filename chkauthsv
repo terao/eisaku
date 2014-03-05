@@ -1,0 +1,268 @@
+#!/usr/bin/perl
+
+$| = 1;
+
+use Getopt::Long;
+
+require "/home/terao/dns/dnslib.pl";
+
+my $verbose = '';       # option variable with default value (false)
+my $quiet = '';
+my $help = '';
+our $debug = 0;          # 0 = false , 1 = debug mode
+my @dnss = ();
+my $domain = '';
+my $mode = "";
+our $logging = 1;  # 1: logging 0:no log
+our $logfile = "/home/terao/dns/chkauthsv.log";  # Log file
+
+my $flag_auth_ans_diff = 0;
+my $flag_auth_ans_diff_inc_unauth = 0;
+my $flag_auth_ns_diff  = 0;
+my $flag_auth_ns_name_diff  = 0;
+my $flag_auth_ns_ip_diff = 0;
+my $flag_auth_ns_check = 1; # 1: check 0: no check(DNSが指定されたとき)
+my $flag_ns_ip_check = 0;
+our @flag_value  = ();
+$flag_value[0]  = "OK";
+$flag_value[1]  = "NG";
+my %auth_ans_values = ();
+our @unauth_dnss = ();
+@unauth_dns_ips = ();
+
+GetOptions (
+        'verbose' => \$verbose,
+        'quiet' => \$quiet,
+        'help'  => \$help,
+        'dns=s' => \@dnss,
+        'domain=s' => \$domain,
+        'mode=s' => \$mode,
+        'debug' => \$debug);
+
+if($help){ &usage(); exit;}
+
+open( LOG , ">>$logfile") or die "can't open log file: $logfile\n" if ($logging > 0);
+
+our $date = qx#date "+%Y/%m/%d(%a) %H:%M:%S"#;
+lprint ("$date \n");
+
+$domain = $ARGV[0] if  $ARGV[0] ne "";
+$domain  =~ s/\s+//;
+$domain  = lc $domain;
+lprint ("##################################################################################\n");
+lprint ("# Domain Name : $domain\n");
+for $i (0 .. $#dnss) {
+    lprint ("# Name Server : $dnss[$i]\n") ;
+}
+
+if($domain eq "") {
+	lprint ("No Domain Name specified. \n");
+	exit;
+}
+elsif( ! ( $domain =~ /^[\.a-zA-Z0-9-]+$/ ) ) { lprint ("$domain : Invalid Domain Name\n") ; exit; }
+
+@tlds = split(/\./,$domain);
+$tld = @tlds[-1];
+if($DNS{$tld} eq ""){
+    $DNS{$tld} = &get_tlddnsserver( $domain );
+}
+
+our %nameserver_auth_ip = ();
+our $nameserver_auth_all = "";
+my @nameserver = ();
+
+if($#dnss == -1){
+	# DNS がひとつも指定されなかった場合、レジストリのネームサーバを見る
+	%nsauthip = ();
+	@nameserver = &get_nameserver($DNS{$tld}, $domain, \%nsauthip);
+
+	my $ipaddr = join(".", unpack('C4', gethostbyname($DNS{$tld}) ) );
+
+	 lprint ("# Registry Name Server : $DNS{$tld} / $ipaddr \n");
+
+	for my $key ( sort @nameserver ) {
+	    lprint ("$domain\tNS\t$key\t$nsauthip{$key}\n");
+	    $nameserver_auth_ip{$key} = $nsauthip{$key};
+	}
+	$nameserver_auth_all = join(/:/,sort %nsauthip);
+	lprint ("\n");
+	lprint ("---------------------------------------\n");
+}else{
+	
+	@nameserver = @dnss;
+	$flag_auth_ns_check = 0;
+	
+}
+
+
+for my $key ( sort @nameserver ) {
+
+    %nsauthip = ();
+    my @nameserver_key = &get_nameserver($key, $domain, \%nsauthip);
+    my $ipaddr = join(".", unpack('C4', gethostbyname($key) ) );
+    lprint ("\n## Authority Name Server : $key / $ipaddr\n");
+    for my $key ( sort @nameserver_key ) {
+        lprint ("$domain\tNS\t$key\t$nsauthip{$key}");
+        if ( $flag_auth_ns_check == 1 ){
+	        unless ( exists $nameserver_auth_ip{$key} ) {
+	            lprint ("\t**NOT AUTH NS NAME**") ;
+	            $flag_auth_ns_name_diff = 1 ;
+	            push(@unauth_dnss, $key) ;
+	        }elsif($nameserver_auth_ip{$key} ne "" && $nameserver_auth_ip{$key} ne $nsauthip{$key}){
+	            lprint ("\t**NO MATCH AUTH NS IP**");
+	            $flag_auth_ns_ip_diff = 1;
+	            push(@unauth_dns_ips, $nsauthip{$key}) ;
+	        }
+		}
+        lprint ("\n");
+    }
+    my $nameserver_all = join(/:/,sort %nsauthip);
+    if($flag_auth_ns_check == 1 && $nameserver_all ne $nameserver_auth_all ){
+        lprint ("**NO MATCH AUTH NS**") ;
+        lprint ("($nameserver_all / $nameserver_auth_all)") if $debug > 0 ;
+        lprint ("\n") ;
+        $flag_auth_ns_diff = 1;
+    }
+    my $keydns = ""; if ($nsauthip{$key} ne ""){ $keydns = $nsauthip{$key};}else{ $keydns = $key; }
+    my $cmd = qq/dig \@$keydns +noall +nocmd +nocomments +answer +noauthority +noadditional +nostats  +multiline  +noquestion +noqr +norec any $domain /;
+    my $r1  = qx/$cmd/;
+    $auth_ans_values{$key}  = join ( "\n", sort ( split(/\n/,$r1) ));
+    my $flag_auth_ans_diff_me = 0;
+    for $auth_ans_value ( keys %auth_ans_values ) {
+        if($auth_ans_values{$key} ne $auth_ans_values{$auth_ans_value}) {
+            $flag_auth_ans_diff = 1 ;
+            $flag_auth_ans_diff_inc_unauth = 1 ;
+            $flag_auth_ans_diff_me = 1;
+        }
+    }
+
+    lprint ("\n;; ANSWER SECTION:\n$r1\n") if $flag_auth_ans_diff_me == 1 || $r1 ne "";
+    lprint (";;  **ANSWER DIFFERENT FOUND!!**\n") if $flag_auth_ans_diff_me == 1 ;
+    my $cmd = qq/dig \@$key +noall +nocmd +nocomments +noanswer +authority +noadditional +nostats  +multiline  +noquestion +noqr +norec any $domain  /;
+    my $r1  = qx/$cmd/;
+    lprint ("\n;; AUTHORITY SECTION:\n$r1\n") if $r1 ne "";
+    my $cmd = qq/dig \@$key +noall +nocmd +nocomments +noanswer +noauthority +additional +nostats  +multiline  +noquestion +noqr +norec any $domain  /;
+    my $r1  = qx/$cmd/;
+    lprint ("\n;; ADDITIONAL SECTION:\n$r1\n") if $r1 ne "";
+    lprint ("---------------------------------------\n");
+}
+
+# unauth dns to uniq
+@unauth_dnss = uniqArray(\@unauth_dnss);
+
+# loop unautority name servers
+for my $key ( sort @unauth_dnss ) {
+
+    %nsauthip = ();
+    my @nameserver_key = &get_nameserver($key, $domain, \%nsauthip);
+    my $ipaddr = join(".", unpack('C4', gethostbyname($key) ) );
+    lprint ("\n## NOT Authority Name Server : $key / $ipaddr\n");
+    for my $key ( sort @nameserver_key ) {
+        lprint ("$domain\tNS\t$key\t$nsauthip{$key}");
+        if($flag_auth_ns_check == 1){
+            unless ( $flag_auth_ns_check == 1 && exists $nameserver_auth_ip{$key} ) {
+                lprint ("\t**NOT AUTH NS NAME**");
+                $flag_auth_ns_name_diff = 1 ;
+                push(@unauth_dnss, $key) ;
+            }elsif($flag_auth_ns_check == 1 && $nameserver_auth_ip{$key} ne "" && $nameserver_auth_ip{$key} ne $nsauthip{$key}){
+                lprint ("\t**NO MATCH AUTH NS IP**") ;
+                lprint ("($nameserver_auth_ip{$key} / $nsauthip{$key})") if $debug > 0;
+                $flag_auth_ns_ip_diff = 1;
+                push(@unauth_dns_ips, $nsauthip{$key}) ;
+            }
+        }
+        lprint ("\n");
+    }
+    my $nameserver_all = join(/:/,sort %nsauthip);
+    if($flag_auth_ns_check == 1 && $nameserver_all ne $nameserver_auth_all ){
+        lprint ("**NO MATCH AUTH NS**\n");
+        $flag_auth_ns_diff = 1;
+    }
+    my $keydns = ""; if ($nsauthip{$key} ne ""){ $keydns = $nsauthip{$key};}else{ $keydns = $key; }
+    my $cmd = qq/dig \@$keydns +noall +nocmd +nocomments +answer +noauthority +noadditional +nostats  +multiline  +noquestion +noqr +norec any $domain /;
+    my $r1  = qx/$cmd/;
+    $auth_ans_values{$key}  = join ( "\n", sort ( split(/\n/,$r1) ));
+    my $flag_auth_ans_diff_me = 0;
+
+    for $auth_ans_value ( keys %auth_ans_values ) {
+        if($auth_ans_values{$key} ne $auth_ans_values{$auth_ans_value}) {
+            $flag_auth_ans_diff = 1 ;
+            $flag_auth_ans_diff_inc_unauth = 1 ;
+            $flag_auth_ans_diff_me = 1;
+        }
+    }
+
+    lprint ("\n;; ANSWER SECTION:\n$r1\n") if $flag_auth_ans_diff_me == 1 || $r1 ne "";
+    lprint (";;  **ANSWER DIFFERENT FOUND!!**\n") if $flag_auth_ans_diff_me == 1 ;
+    my $cmd = qq/dig \@$key +noall +nocmd +nocomments +noanswer +authority +noadditional +nostats  +multiline  +noquestion +noqr +norec any $domain  /;
+    my $r1  = qx/$cmd/;
+    lprint ("\n;; AUTHORITY SECTION:\n$r1\n") if $r1 ne "";
+    lprint (";;  SECTION:\n$r1\n") if $flag_auth_ans_diff_me == 1 ;
+    my $cmd = qq/dig \@$key +noall +nocmd +nocomments +noanswer +noauthority +additional +nostats  +multiline  +noquestion +noqr +norec any $domain  /;
+    my $r1  = qx/$cmd/;
+    lprint ("\n;; ADDITIONAL SECTION:\n$r1\n") if $r1 ne "";
+    lprint ("---------------------------------------\n");
+}
+
+
+lprint ("\n");
+
+lprint ("## NS -> A Check\n");
+for my $dns ( sort @nameserver ,  sort @unauth_dnss ){
+	my $cmd2 = qq#host $dns | egrep '^$dns' |  grep ' has address ' | uniq | sed 's/ has address /\t/' | cut -f 2#;
+	print $cmd2."\n" if $debug > 0;
+	my $r2  = qx/$cmd2/;
+	$r2 =~ s/\n//;
+	my $ip = "";
+	
+        if($r2 ne "") {$ip = $r2; } else { $ip = "NO A Recode"; $flag_ns_ip_check = 1;}
+	lprint ("$dns\t$ip\n");
+}
+
+lprint ("\n");
+
+lprint ("1-1) Authority Answer DIFF: $flag_value[$flag_auth_ans_diff]\n");
+lprint ("1-2) Authority Answer DIFF INCLUDE Unauthority: $flag_value[$flag_auth_ans_diff_inc_unauth]\n");
+lprint ("2-1) NS -> A Check: $flag_value[$flag_ns_ip_check]\n");
+#lprint ("2-2) MX -> A Check: $flag_value[$flag_ns_ip_check]\n");
+
+if($flag_auth_ns_check == 1){
+	lprint ("3-1) Authority Nameserver DIFF : $flag_value[$flag_auth_ns_diff]\n");
+	lprint ("3-2) Authority Nameserver NAME DIFF : $flag_value[$flag_auth_ns_name_diff]\n");
+	lprint ("3-3) Authority Nameserver IP DIFF : $flag_value[$flag_auth_ns_ip_diff]\n");
+}
+lprint ("\n");
+
+exit(0);
+
+sub usage{
+
+print <<_END_
+chkauthsv.pl DOMAIN_NAME
+_END_
+
+}
+
+#------------------------------#
+#配列(リスト)から重複を取り除く
+#------------------------------#
+sub uniqArray{
+    my $array = shift;
+    my %hash  = ();
+    my @array  = ();
+
+    foreach my $value ( @$array ){
+        push(@array,$value) unless exists $hash{$value} ;
+        $hash{$value} = 1;
+    }
+
+    return( @array );
+}
+
+sub lprint{
+	my $str = shift @_;
+	print     "$str";
+	print LOG "$str" if ($logging > 0);
+}
+
+1;
