@@ -38,7 +38,7 @@ WP_ADMIN_MAIL="$1"
 
 if [[ "$email" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,4}$ ]]
 then
-    #echo "Email address $WP_ADMIN_MAIL is valid."
+    echo "Email address $WP_ADMIN_MAIL is valid."
 else
     echo "Email address $WP_ADMIN_MAIL is invalid."
 fi
