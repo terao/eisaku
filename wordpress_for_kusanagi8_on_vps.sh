@@ -44,13 +44,13 @@ WP_ADMIN_PASSWD=`mkpasswd -l 32 -d 9 -c 9 -C 9 -s 0 -2`
 WP_TITLE="ICHIGEKI WordPress on KUSANAGI"
 WP_ADMIN_MAIL="$1"
 
-if [[ "$email" =~ ^[A-Za-z0-9\._%+\-]+@[A-Za-z0-9\.\-]+\.[A-Za-z]{2,4}$ ]] ;
-then 
-    echo "Email address $WP_ADMIN_MAIL is valid."
-else
-    echo "Email address $WP_ADMIN_MAIL is invalid."
-    exit 1;
-fi
+#if [[ "$email" =~ ^[A-Za-z0-9_%+\.\-]+@[A-Za-z0-9\.\-]+\.[A-Za-z]{2,4}$ ]] ;
+#then 
+#    echo "Email address $WP_ADMIN_MAIL is valid."
+#else
+#    echo "Email address $WP_ADMIN_MAIL is invalid."
+#    exit 1;
+#fi
 
 TERM=xterm
 
@@ -59,7 +59,8 @@ WPDB_USERNAME="wp_`mkpasswd -l 10 -C 0 -s 0`"
 WPDB_PASSWORD=`mkpasswd -l 32 -d 9 -c 9 -C 9 -s 0 -2`
 
 
-echo  << EOS
+cat << EOS
+## infomation
 - Server Infomation
 Web Server : Nginx
 PHP Type   : hhvm
@@ -157,7 +158,7 @@ EOF
 echo "## finished!";
 
 
-echo  << EOS
+cat << EOS
 - Server Infomation
 Web Server : Nginx
 PHP Type   : hhvm
