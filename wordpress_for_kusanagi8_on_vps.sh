@@ -32,6 +32,9 @@
 # @sacloud-text     required shellarg maxlen=256 WP_TITLE        "WordPress サイトのタイトル (256文字以下)"
 # @sacloud-text     required  maxlen=128 WP_ADMIN_MAIL   "WordPress 管理者メールアドレス (インストール完了時にメールが送信されます)" ex="user@example.com"
 
+echo "## start date";
+date
+
 echo "## set default variables";
 
 KUSANAGI_PASSWD=`mkpasswd -l 32 -d 9 -c 9 -C 9 -s 0 -2`
@@ -178,5 +181,7 @@ Wordpress Admin Email      : $WP_ADMIN_MAIL
 EOS
 
 echo "## Please reboot the server yourself.";
- 
+echo "## finish date";
+date
+
 exit 0
