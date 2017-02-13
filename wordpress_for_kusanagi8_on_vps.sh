@@ -1,10 +1,5 @@
 #!/bin/bash
 
-# @sacloud-once
-#
-# @sacloud-require-archive pkg-kusanagi
-#
-# @sacloud-desc-begin
 #   KUSANAGI8 環境に WordPress をセットアップするスクリプトです。
 #   このスクリプトを使うと kusanagi ユーザで ssh ログイン可能になります。
 #   サーバ作成後、WebブラウザでサーバのIPアドレスにアクセスしてください。
@@ -18,7 +13,17 @@
 #   詳細は詳細は以下のページを詳細は以下のページをご覧ください
 #    http://cloud-news.sakura.ad.jp/wordpress-for-kusanagi8/
 # @sacloud-desc-end
-#
+# Command
+# 
+# curl -O https://raw.githubusercontent.com/terao/eisaku/master/wordpress_for_kusanagi8_on_vps.sh
+# 
+# chmod 700 wordpress_for_kusanagi8_on_vps.sh
+# 
+# ./wordpress_for_kusanagi8_on_vps.sh e-terao@sakura.ad.jp  2>&1 | tee -a wordpress_for_kusanagi8_on_vps.log
+# 
+# 
+# reboot
+# 
 # 管理ユーザーの入力フォームの設定
 # @sacloud-password required shellarg maxlen=60 minlen=6 KUSANAGI_PASSWD  "ユーザー kusanagi のパスワード" ex="6〜60文字"
 # @sacloud-password required shellarg maxlen=60 minlen=6 DBROOT_PASSWD    "MariaDB root ユーザーのパスワード" ex="6〜60文字"
@@ -50,6 +55,30 @@ IPADDRESS0=`ip -f inet -o addr show eth0|cut -d\  -f 7 | cut -d/ -f 1`
 WPDB_USERNAME="wp_`mkpasswd -l 10 -C 0 -s 0`"
 WPDB_PASSWORD=`mkpasswd -l 32 -d 9 -c 9 -C 9 -s 0 -2`
 
+
+echo  << EOS
+- Server Infomation
+Web Server : Nginx
+PHP Type   : hhvm
+IP Address : $IPADDRESS0
+
+- Linux User Infomation
+kusanagi user Password     : $KUSANAGI_PASSWD
+
+- MariaDB Infomation
+MariaDB root Password      : $DBROOT_PASSWD
+MariaDB Wordpress Username : $WPDB_USERNAME
+MariaDB Wordpress Password : $WPDB_PASSWORD
+
+- WordPress Infomation
+Wordpress URL              : https://$IPADDRESS0/
+Wordpress Admin Username   : $WP_ADMIN_USER
+Wordpress Admin Password   : $WP_ADMIN_PASSWD
+Wordpress Title            : $WP_TITLE
+Wordpress Admin Email      : $WP_ADMIN_MAIL
+
+EOS
+
 echo "## yum update";
 yum --enablerepo=remi,remi-php56 update -y || exit 1
 sleep 10
@@ -57,8 +86,8 @@ sleep 10
 #---------START OF kusanagi---------#
 echo "## Kusanagi init";
 kusanagi init --tz Asia/Tokyo --lang ja --keyboard ja \
-  --passwd $KUSANAGI_PASSWD --no-phrase \
-  --dbrootpass $DBROOT_PASSWD \
+  --passwd "$KUSANAGI_PASSWD" --no-phrase \
+  --dbrootpass "$DBROOT_PASSWD" \
   --nginx --hhvm || exit 1
 
 echo "## Kusanagi provision";
@@ -89,7 +118,7 @@ sudo -u kusanagi -i /usr/local/bin/wp core config \
 echo "## Kusanagi wordpress core install";
 sudo -u kusanagi  -i /usr/local/bin/wp core install \
   --url=$IPADDRESS0 \
-  --title=$WP_TITLE \
+  --title="$WP_TITLE" \
   --admin_user=$WP_ADMIN_USER  \
   --admin_password=$WP_ADMIN_PASSWD \
   --admin_email="$WP_ADMIN_MAIL" \
@@ -123,7 +152,7 @@ $SYSTEMINFO
 EOF
 
 echo "## finished!";
-echo "please access to https://$IPADDRESS0/";
+
 
 echo  << EOS
 - Server Infomation
