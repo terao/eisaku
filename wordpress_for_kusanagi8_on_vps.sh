@@ -41,7 +41,7 @@ WP_ADMIN_PASSWD=`mkpasswd -l 32 -d 9 -c 9 -C 9 -s 0 -2`
 WP_TITLE="ICHIGEKI WordPress on KUSANAGI"
 WP_ADMIN_MAIL="$1"
 
-if [[ "$email" =~ ^[A-Za-z0-9¥._%+-]+@[A-Za-z0-9¥.-]+\.[A-Za-z]{2,4}$ ]]
+if [ "$email" =~ ^[A-Za-z0-9¥._%+-]+@[A-Za-z0-9¥.-]+\.[A-Za-z]{2,4}$ ]
 then
     echo "Email address $WP_ADMIN_MAIL is valid."
 else
