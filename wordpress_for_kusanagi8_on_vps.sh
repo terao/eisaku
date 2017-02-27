@@ -87,7 +87,7 @@ kusanagi provision \
 #---------START OF WordPrss---------#
 
 # バックエンドで sudo が動くように設定変更
-sed 's/^Defaults    requiretty/#Defaults    requiretty/' -i.bk  /etc/sudoers  || exit 1
+#sed 's/^Defaults    requiretty/#Defaults    requiretty/' -i.bk  /etc/sudoers  || exit 1
 
 # ここからWordPress の設定ファイル作成
 echo "## Kusanagi wordpress config";
@@ -109,7 +109,7 @@ sudo -u kusanagi  -i /usr/local/bin/wp core install \
   --path=/home/kusanagi/default_profile/DocumentRoot/  || exit 1
 
 # sudo の変更を元に戻す
-/bin/cp /etc/sudoers.bk /etc/sudoers  || exit 1
+#/bin/cp /etc/sudoers.bk /etc/sudoers  || exit 1
 
 #---------END OF WordPrss---------#
 
