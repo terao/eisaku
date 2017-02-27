@@ -13,7 +13,7 @@
 # 
 # chmod 700 wordpress_for_kusanagi8_on_vps.sh
 # 
-# ./wordpress_for_kusanagi8_on_vps.sh terao@example.jp  2>&1 | tee -a wordpress_for_kusanagi8_on_vps.log
+# ./wordpress_for_kusanagi8_on_vps.sh fqdn terao@example.jp  2>&1 | tee -a wordpress_for_kusanagi8_on_vps.log
 # #(teeコマンドでログに出力するとパスワードをコピペできなかったときに便利です。必ず、パスワードをコピーしたらログを削除してください)
 #
 # # 最後にサーバのrebootを推奨します
@@ -25,12 +25,16 @@ date
 
 echo "## set default variables";
 
+FQDN="$1"
+
 KUSANAGI_PASSWD=`mkpasswd -l 32 -d 9 -c 9 -C 9 -s 0 -2`
 DBROOT_PASSWD=`mkpasswd -l 32 -d 9 -c 9 -C 9 -s 0 -2`
 WP_ADMIN_USER="admin_`mkpasswd -l 5 -C 0 -s 0`"
 WP_ADMIN_PASSWD=`mkpasswd -l 32 -d 9 -c 9 -C 9 -s 0 -2`
 WP_TITLE="ICHIGEKI WordPress on KUSANAGI"
-WP_ADMIN_MAIL="$1"
+WP_ADMIN_MAIL="$2"
+
+SSL_MAIL="$2"
 
 TERM=xterm
 
@@ -41,10 +45,14 @@ WPDB_PASSWORD=`mkpasswd -l 32 -d 9 -c 9 -C 9 -s 0 -2`
 
 cat << EOS
 ## infomation
-- Server Infomation
-Web Server : Nginx
-PHP Type   : hhvm
-IP Address : $IPADDRESS0
+
+- KUSANAGI Server Infomation
+Web Server      : Nginx
+PHP Type        : hhvm
+Default Profile : default_profile
+IP Address      : $IPADDRESS0
+FQDN            : $FQDN
+SSL EMAIL       : $SSL_MAIL
 
 - Linux User Infomation
 kusanagi user Password     : $KUSANAGI_PASSWD
@@ -53,13 +61,16 @@ kusanagi user Password     : $KUSANAGI_PASSWD
 MariaDB root Password      : $DBROOT_PASSWD
 MariaDB Wordpress Username : $WPDB_USERNAME
 MariaDB Wordpress Password : $WPDB_PASSWORD
+MariaDB Host               : localhost
+MariaDB Charset            : utf8mb4
 
 - WordPress Infomation
-Wordpress URL              : https://$IPADDRESS0/
+Wordpress URL              : https://$FQDN
 Wordpress Admin Username   : $WP_ADMIN_USER
 Wordpress Admin Password   : $WP_ADMIN_PASSWD
 Wordpress Title            : $WP_TITLE
 Wordpress Admin Email      : $WP_ADMIN_MAIL
+Document Root              : /home/kusanagi/default_profile/DocumentRoot/
 
 EOS
 
@@ -68,13 +79,13 @@ yum --enablerepo=remi,remi-php56 update -y || exit 1
 sleep 10
 
 #---------START OF kusanagi---------#
-echo "## Kusanagi init";
+echo "## kusanagi init";
 kusanagi init --tz Asia/Tokyo --lang ja --keyboard ja \
   --passwd "$KUSANAGI_PASSWD" --no-phrase \
   --dbrootpass "$DBROOT_PASSWD" \
   --nginx --hhvm || exit 1
 
-echo "## Kusanagi provision";
+echo "## kusanagi provision";
 kusanagi provision \
   --WordPress  --wplang ja \
   --fqdn $IPADDRESS0 \
@@ -90,7 +101,7 @@ kusanagi provision \
 #sed 's/^Defaults    requiretty/#Defaults    requiretty/' -i.bk  /etc/sudoers  || exit 1
 
 # ここからWordPress の設定ファイル作成
-echo "## Kusanagi wordpress config";
+echo "## kusanagi wordpress config";
 sudo -u kusanagi -i /usr/local/bin/wp core config \
   --dbname=$WPDB_USERNAME \
   --dbuser=$WPDB_USERNAME \
@@ -99,7 +110,7 @@ sudo -u kusanagi -i /usr/local/bin/wp core config \
   --path=/home/kusanagi/default_profile/DocumentRoot/ \
   < /usr/lib/kusanagi/resource/wp-config-sample/ja/wp-config-extra.php  || exit 1
 
-echo "## Kusanagi wordpress core install";
+echo "## kusanagi wordpress core install";
 sudo -u kusanagi  -i /usr/local/bin/wp core install \
   --url=$IPADDRESS0 \
   --title="$WP_TITLE" \
@@ -107,6 +118,19 @@ sudo -u kusanagi  -i /usr/local/bin/wp core install \
   --admin_password=$WP_ADMIN_PASSWD \
   --admin_email="$WP_ADMIN_MAIL" \
   --path=/home/kusanagi/default_profile/DocumentRoot/  || exit 1
+
+echo "## kusanagi setting fqdn";
+kusanagi setting --fqdn $FQDN \
+  default_profile 
+
+echo "## kusanagi ssl";
+kusanagi ssl \
+  --email "$WP_ADMIN_MAIL" \
+  --https redirect \
+  --hsts  mid \
+  --auto  on \
+  --ct  on \
+  default_profile 
 
 # sudo の変更を元に戻す
 #/bin/cp /etc/sudoers.bk /etc/sudoers  || exit 1
@@ -116,13 +140,14 @@ sudo -u kusanagi  -i /usr/local/bin/wp core install \
 
 echo "## finished!";
 
-
 cat << EOS
 - KUSANAGI Server Infomation
 Web Server      : Nginx
 PHP Type        : hhvm
 Default Profile : default_profile
 IP Address      : $IPADDRESS0
+FQDN            : $FQDN
+SSL EMAIL       : $SSL_MAIL
 
 - Linux User Infomation
 kusanagi user Password     : $KUSANAGI_PASSWD
@@ -135,7 +160,7 @@ MariaDB Host               : localhost
 MariaDB Charset            : utf8mb4
 
 - WordPress Infomation
-Wordpress URL              : https://$IPADDRESS0/
+Wordpress URL              : https://$FQDN
 Wordpress Admin Username   : $WP_ADMIN_USER
 Wordpress Admin Password   : $WP_ADMIN_PASSWD
 Wordpress Title            : $WP_TITLE
