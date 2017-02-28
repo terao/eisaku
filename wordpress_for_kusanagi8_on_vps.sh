@@ -121,16 +121,16 @@ sudo -u kusanagi  -i /usr/local/bin/wp core install \
 
 echo "## kusanagi setting fqdn";
 kusanagi setting --fqdn $FQDN \
-  default_profile 
+  default_profile
 
 echo "## kusanagi ssl";
 kusanagi ssl \
-  --email "$WP_ADMIN_MAIL" \
-  --https redirect \
-  --hsts  mid \
-  --auto  on \
-  --ct  on \
-  default_profile 
+  --email "$WP_ADMIN_MAIL" \
+  --https redirect \
+  --hsts  off \
+  --auto  on \
+  --no-register \
+  default_profile
 
 # sudo の変更を元に戻す
 #/bin/cp /etc/sudoers.bk /etc/sudoers  || exit 1
