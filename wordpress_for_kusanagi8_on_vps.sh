@@ -2,11 +2,12 @@
 
 #   さくらのVPSのKUSANAGI8 環境に WordPress をセットアップするスクリプトです。
 #   このスクリプトを使うと各種パスワードを自動生成します。
-#   https://サーバのIPアドレス/
+#   https://FQDN/
 #   ※ セットアップには5〜10分程度時間がかかります。
 #   （このスクリプトは、KUSANAGI8でのみ動作します）
 #   
 #   セットアップ後は、kusanagiのSSL(Let's Encrypt)設定や、WordPress のURL設定をIPアドレスからドメイン名に変更する設定の実施をおすすめします。
+# 
 # Command
 # 
 # curl -O https://raw.githubusercontent.com/terao/eisaku/master/wordpress_for_kusanagi8_on_vps.sh
@@ -16,8 +17,6 @@
 # ./wordpress_for_kusanagi8_on_vps.sh fqdn terao@example.jp  2>&1 | tee -a wordpress_for_kusanagi8_on_vps.log
 # #(teeコマンドでログに出力するとパスワードをコピペできなかったときに便利です。必ず、パスワードをコピーしたらログを削除してください)
 #
-# # 最後にサーバのrebootを推奨します
-# reboot
 # 
 
 echo "## start date";
@@ -48,7 +47,7 @@ cat << EOS
 
 - KUSANAGI Server Infomation
 Web Server      : Nginx
-PHP Type        : hhvm
+PHP Type        : php7
 Default Profile : default_profile
 IP Address      : $IPADDRESS0
 FQDN            : $FQDN
@@ -83,7 +82,7 @@ echo "## kusanagi init";
 kusanagi init --tz Asia/Tokyo --lang ja --keyboard ja \
   --passwd "$KUSANAGI_PASSWD" --no-phrase \
   --dbrootpass "$DBROOT_PASSWD" \
-  --nginx --hhvm || exit 1
+  --nginx --php7 || exit 1
 
 echo "## kusanagi provision";
 kusanagi provision \
@@ -143,7 +142,7 @@ echo "## finished!";
 cat << EOS
 - KUSANAGI Server Infomation
 Web Server      : Nginx
-PHP Type        : hhvm
+PHP Type        : php7
 Default Profile : default_profile
 IP Address      : $IPADDRESS0
 FQDN            : $FQDN
