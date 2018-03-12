@@ -93,7 +93,7 @@ resource sakuracloud_server "server02" {
 #    gateway = "192.168.100.1"
 #    nw_mask_len = 24
 
-    core = 5
-    memory = 32
+    core = 2
+    memory = 2
 }
 
