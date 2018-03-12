@@ -64,7 +64,7 @@ resource sakuracloud_vpc_router_dhcp_server "dhcp" {
   vpc_router_interface_index = "${sakuracloud_vpc_router_interface.eth1.index}" # 対象プライベートIPが属するNICのインデックス
 
   range_start = "192.168.100.101"       # IPアドレス動的割り当て範囲(開始)
-  range_stop  = "192.168.100.101"       # IPアドレス動的割り当て範囲(終了)
+  range_stop  = "192.168.100.102"       # IPアドレス動的割り当て範囲(終了)
   # dns_servers = ["8.8.4.4", "8.8.8.8"] # 配布するDNSサーバIPアドレスのリスト
 }
 
