@@ -32,7 +32,7 @@ resource "sakuracloud_vpc_router_interface" "eth1"{
     vpc_router_id = "${sakuracloud_vpc_router.vpc.id}"
     index = 1
     switch_id = "${sakuracloud_switch.sw02.id}"
-    ipaddress = ["192.168.100.1"]                   // VPCルータIPアドレスの設定
+    ipaddress = ["192.168.101.1"]                   // VPCルータIPアドレスの設定
     nw_mask_len = 24                                // ネットワークマスク
 }
 resource "sakuracloud_vpc_router_l2tp" "l2tp" {
@@ -40,8 +40,8 @@ resource "sakuracloud_vpc_router_l2tp" "l2tp" {
     vpc_router_interface_id = "${sakuracloud_vpc_router_interface.eth1.id}"
 
     pre_shared_secret = "${var.pre_shared_secret}"
-    range_start = "192.168.100.251"                 // IPアドレス動的割り当て範囲(開始)
-    range_stop = "192.168.100.254"                  // IPアドレス動的割り当て範囲(終了)
+    range_start = "192.168.101.251"                 // IPアドレス動的割り当て範囲(開始)
+    range_stop = "192.168.101.254"                  // IPアドレス動的割り当て範囲(終了)
 }
 resource "sakuracloud_vpc_router_user" "user1" {
     vpc_router_id = "${sakuracloud_vpc_router.vpc.id}"
@@ -54,7 +54,7 @@ resource "sakuracloud_vpc_router_port_forwarding" "forward_http" {
 # ポートフォワード(Reverse NAT) : RDP
     protocol = "tcp"
     global_port = 3389
-    private_address = "192.168.100.101"
+    private_address = "192.168.101.101"
     private_port = 3389
 }
 
@@ -63,8 +63,8 @@ resource sakuracloud_vpc_router_dhcp_server "dhcp" {
   vpc_router_id              = "${sakuracloud_vpc_router.vpc.id}"
   vpc_router_interface_index = "${sakuracloud_vpc_router_interface.eth1.index}" # 対象プライベートIPが属するNICのインデックス
 
-  range_start = "192.168.100.101"       # IPアドレス動的割り当て範囲(開始)
-  range_stop  = "192.168.100.102"       # IPアドレス動的割り当て範囲(終了)
+  range_start = "192.168.101.101"       # IPアドレス動的割り当て範囲(開始)
+  range_stop  = "192.168.101.102"       # IPアドレス動的割り当て範囲(終了)
   # dns_servers = ["8.8.4.4", "8.8.8.8"] # 配布するDNSサーバIPアドレスのリスト
 }
 
@@ -89,8 +89,8 @@ resource sakuracloud_server "server02" {
     disks = ["${sakuracloud_disk.disk02.id}"]
 
     nic = "${sakuracloud_switch.sw02.id}"
-#    ipaddress = "192.168.100.101"
-#    gateway = "192.168.100.1"
+#    ipaddress = "192.168.101.101"
+#    gateway = "192.168.101.1"
 #    nw_mask_len = 24
 
     core = 2
